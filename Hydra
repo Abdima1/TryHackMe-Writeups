@@ -1,1 +1,68 @@
+# 🦖 TryHackMe: Network Reconnaissance & Password Brute-Forcing
 
+* **Tools Demonstrated:** Nmap, Hydra
+* **Target Services:** SSH (Port 22) / HTTP (Port 80)
+* **Difficulty:** Easy / Intermediate
+
+---
+
+## 🎯 Executive Summary
+This walkthrough documents a full-cycle attack methodology against a target machine. It covers initial active reconnaissance using **Nmap** to discover open ports, followed by an online dictionary brute-force attack using **Hydra** to exploit weak credential management. Finally, it outlines actionable remediation strategies to secure the infrastructure against these common attack vectors.
+
+---
+
+## 🕵️ Phase 1: Reconnaissance (Nmap Scanning)
+
+To map out the attack surface, I initiated an active network scan using **Nmap** to detect open ports, service versions, and OS fingerprints running on the target machine.
+
+**Command Executed:**
+```bash
+nmap -sV -sC -v -p- --min-rate 1000 <TARGET_IP>
+```
+
+### 🖥️ ADD KALI RECON IMAGE HERE:
+<!-- Upload your Nmap screenshot to this folder and replace 'nmap_scan.png' with your file name -->
+![Nmap Scan Terminal Output](nmap_scan.png)
+
+### Key Findings from Scan:
+* **Port 22/tcp:** Open - OpenSSH 8.2p1 (Potential target for SSH brute-forcing)
+* **Port 80/tcp:** Open - Apache httpd 2.4.41 (Web interface hosting a login form)
+
+---
+
+## 💥 Phase 2: Exploitation (Hydra Brute-Force Attack)
+
+Using the service profiles discovered during reconnaissance, I targeted the open authentication mechanisms. Because no account lockout policies were active, I executed an automated dictionary attack using **Hydra** paired with the `rockyou.txt` wordlist.
+
+### Attack Vector: SSH Brute-Forcing
+I targeted a previously enumerated username (`admin`) to discover the corresponding password over the SSH protocol.
+
+**Command Executed:**
+```bash
+hydra -l admin -P /usr/share/wordlists/rockyou.txt ssh://<TARGET_IP> -t 4 -V
+```
+
+### 🖥️ ADD KALI BRUTE-FORCE IMAGE HERE:
+<!-- Upload your Hydra success screenshot to this folder and replace 'hydra_success.png' with your file name -->
+![Hydra Successful Password Crack Output](hydra_success.png)
+
+### Exploitation Result:
+* **Status:** Success
+* **Identified Credentials:** `admin` : `[REDACTED_PASSWORD]`
+* **Impact:** Full terminal access achieved via SSH using the cracked credentials.
+
+---
+
+## 🛡️ Phase 3: Mitigation & Defensive Recommendations
+
+To successfully defend this system against automated reconnaissance and brute-force utilities, the following security controls must be implemented:
+
+### 1. Defending Against Nmap (Reconnaissance Mitigation)
+* **Implement a Firewall/IDS/IPS:** Configure a firewall (like `iptables` or `UFW`) or an Intrusion Prevention System (like **Snort**) to detect and block rapid port scanning behavior.
+* **Rate-Limit Inbound Traffic:** Block IP addresses that attempt to connect to hundreds of ports within a short window.
+
+### 2. Defending Against Hydra (Brute-Force Mitigation)
+* **Deploy Fail2ban:** Install and configure `fail2ban` to monitor system logs. If an IP address triggers more than 5 failed authentication attempts within 10 minutes, automatically ban that IP at the firewall level.
+* **Enforce Multi-Factor Authentication (MFA):** Implement MFA for SSH and web applications. Even if an attacker cracks the password using Hydra, they cannot log in without the secondary physical token.
+* **Enforce Strong Password Policies:** Ensure passwords are at least 14 characters long and do not exist in standard wordlists like `rockyou.txt`.
+* **Disable Root/Password SSH Login:** Modify `/etc/ssh/sshd_config` to disable password authentication completely (`PasswordAuthentication no`) and require secure **SSH Cryptographic Keys** instead.
